@@ -1,0 +1,51 @@
+from microbit import *
+import math
+
+def FreeFallTiming(accelfreefall, pausems, lsbvaluemg, verbose=False):
+    accelmodulemg = 980.0
+    display.show(Image.ALL_CLOCKS, wait=False, loop=True, delay=100)
+    n = 0
+    ti = running_time()
+    while accelmodulemg > accelfreefall:   # While not free fall
+        accel3d = accelerometer.get_values()
+        accelmodulemg = math.sqrt(accel3d[0]**2 + accel3d[1]**2 + accel3d[2]**2)/lsbvaluemg
+        n += 1
+#        sleep(pausems) # Pause in ms inside the loop
+    tf = running_time()
+    if verbose:
+        print("%u loops, mean time before free fall = %4.3f ms" % (n, ((1.0*(tf-ti))/n)))
+
+    display.show(Image.ARROW_S)
+    accelmodulemg = 0.0
+    n = 0
+    ti = running_time()
+    while accelmodulemg <= 4.0*accelfreefall:   # While free fall
+        accel3d = accelerometer.get_values()
+        accelmodulemg = math.sqrt(accel3d[0]**2 + accel3d[1]**2 + accel3d[2]**2)/lsbvaluemg
+        n += 1
+#        sleep(pausems) # Pause in ms inside the loop
+    tf = running_time()
+    if verbose:
+        print("%u loops, mean time during free fall = %4.3f ms" % (n, ((1.0*(tf-ti))/n)))
+
+    freefalltimems = (tf - ti)*0.001
+    distance = (9.8/2)*freefalltimems**2
+    text = '%4.3f s %4.3f m' % (freefalltimems, distance)
+    if verbose:
+        print("Free fall time and distance = %s" % text)
+    display.scroll(text, wait=False, loop=True)
+
+i2c.write(0x1d, b'\x2a\x00')  # Disable to be able to configure
+i2c.write(0x1d, b'\x0e\x00')  # 2g scale
+lsbvaluemg = 1.024
+i2c.write(0x1d, b'\x2b\x02')  # High-resolution
+i2c.write(0x1d, b'\x2a\x01')  # Sample rate of 800Hz
+print('Free Fall Experiment with BBC Micro:bit accelerometer')
+print('2g, 800 Hz, high resolution :')
+
+display.scroll('Free Fall time')
+
+while True:
+    FreeFallTiming(100.0, 1, lsbvaluemg, verbose=True)
+    while not button_a.is_pressed():
+        sleep(10)
