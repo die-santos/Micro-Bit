@@ -1,0 +1,88 @@
+from microbit import *
+import math
+import gc
+
+# Free RAM memory
+print('Free RAM after loading modules, before collect : %d bytes' % gc.mem_free())
+gc.collect()
+print('Free RAM after loading modules, after collect : %d bytes' % gc.mem_free())
+
+def AccelLog(numAccelReadings, pausems, lsbvaluemg, verbose=True, flaglog=True):
+    if flaglog:
+        datalogfilename = 'AccelLog.csv'
+        log = open(datalogfilename, 'w')
+        log.write("Tempo (ms), Aceleracao no eixo x (mg)\n")
+        print("%u Accelerometer datalogging to be stored on file %s..." %(numAccelReadings, datalogfilename))
+    accelmglist = [0]*numAccelReadings
+    timemslist = [0]*numAccelReadings
+    initialtimems = running_time()
+# Loop to read the acceleration
+    i = 0
+    while (i < numAccelReadings):
+        accelmg = int(accelerometer.get_x()/lsbvaluemg)
+        accelmglist[i] = accelmg
+        timems = (running_time()) - initialtimems
+        timemslist[i] = timems
+        if verbose:
+            print("Accelerometer x axis reading = %4d mg, %d ms" % (accelmg, timems))
+        sleep(pausems)
+        i += 1
+    finaltimems = running_time()
+# Free RAM memory
+    print('Free RAM after accelerometer reading, before collect : %d bytes' % gc.mem_free())
+    gc.collect()
+    print('Free RAM after accelerometer reading, after collect : %d bytes' % gc.mem_free())
+    if flaglog:
+# Loop to save the csv datalog file
+        ti = running_time()
+        i = 0
+        while (i < numAccelReadings):
+            log.write("%d, %4d\n" % (timemslist[i], accelmglist[i]))
+            i += 1
+        log.close()
+        tf = running_time()
+        print("%u data logged saved to csv file after %u ms." %(i, tf - ti))
+    deltatimems = finaltimems - initialtimems
+    print("%u accelerometer readings done after %u ms." %(i, deltatimems))
+    print("Mean time for each accelerometer reading = %7.3f ms" % (deltatimems/i))
+    print("Accelerometer reading speed = %15.13f samples/s" % ((i*1000.)/deltatimems))
+
+# Set the accelerometer mode
+i2c.write(0x1d, b'\x2a\x00')  # Disable to be able to configure
+i2c.write(0x1d, b'\x0e\x00')  # 2g scale
+lsbvaluemg = 1.024
+i2c.write(0x1d, b'\x2b\x02')  # High-resolution
+#i2c.write(0x1d, b'\x2a\x01')  # Sample rate of 800Hz
+#i2c.write(0x1d, b'\x2a\x09')  # Sample rate of 400Hz
+#i2c.write(0x1d, b'\x2a\x11')  # Sample rate of 200Hz
+i2c.write(0x1d, b'\x2a\x19')  # Sample rate of 100Hz
+print('Acceleration measure experiment with BBC Micro:bit accelerometer')
+print('Scale 2g, sampling 100 Hz, high resolution :')
+
+print('Waiting to user press button A...')
+display.show(Image.ALL_CLOCKS, wait=False, loop=True, delay=100)
+while True:
+    if button_a.is_pressed():
+        print('User pressed button A')
+        display.show(Image.YES)
+        break
+
+print('Pause of 1 second to avoid vibration after pressing the button')
+sleep(1000)
+
+print('Running AccelLog...')
+display.show(Image.ARROW_E)
+# Free RAM memory
+print('Free RAM before acceleration logging, before collect : %d bytes' % gc.mem_free())
+gc.collect()
+print('Free RAM before acceleration logging, after collect : %d bytes' % gc.mem_free())
+
+# 0.54 ms to each accelerometer reading, without terminal print, so plus 7.5 ms of sleep pause to get approx. 10 ms or 100 samples/second.
+# 7.06 ms to each accelerometer reading, with terminal print, so plus 1 ms of sleep pause to get approx. 10 ms or 100 samples/second.
+AccelLog(400, 7.5, lsbvaluemg, verbose=False, flaglog=True)
+# Free RAM memory
+print('Free RAM before finishing, before collect : %d bytes' % gc.mem_free())
+gc.collect()
+print('Free RAM before finishing, after collect : %d bytes' % gc.mem_free())
+display.show(Image.DIAMOND)
+print('AccelLog finished')
